@@ -67,42 +67,85 @@ async def setup_db():
             );
         """)
 
-        # Миграция: добавляем колонки если нет
+        # Добавляем колонки если нет
         await conn.execute("""
             ALTER TABLE providers ADD COLUMN IF NOT EXISTS social_link TEXT;
             ALTER TABLE categories ADD COLUMN IF NOT EXISTS redirect_bot_url TEXT DEFAULT NULL;
         """)
 
-        # Миграция: добавляем UNIQUE constraint если нет
+        # Миграция: добавляем UNIQUE constraints через DO блок
         await conn.execute("""
             DO $$
+            DECLARE
+                min_id INTEGER;
             BEGIN
+                -- ── districts ──────────────────────────────────────
                 IF NOT EXISTS (
-                    SELECT 1 FROM pg_constraint
-                    WHERE conname = 'districts_name_key'
+                    SELECT 1 FROM pg_constraint WHERE conname = 'districts_name_key'
                 ) THEN
-                    -- Сначала удаляем дубли, оставляем запись с минимальным id
-                    DELETE FROM districts
-                    WHERE id NOT IN (
-                        SELECT MIN(id) FROM districts GROUP BY name
-                    );
+                    -- Для каждого дубля: переключаем ссылки из searches на min_id
+                    FOR min_id IN
+                        SELECT MIN(id) FROM districts GROUP BY name HAVING COUNT(*) > 1
+                    LOOP
+                        -- Обнуляем district_id в searches для дублирующихся записей
+                        UPDATE searches
+                        SET district_id = min_id
+                        WHERE district_id IN (
+                            SELECT id FROM districts
+                            WHERE name = (SELECT name FROM districts WHERE id = min_id)
+                            AND id != min_id
+                        );
+
+                        -- Удаляем дубли
+                        DELETE FROM districts
+                        WHERE name = (SELECT name FROM districts WHERE id = min_id)
+                        AND id != min_id;
+                    END LOOP;
+
                     ALTER TABLE districts ADD CONSTRAINT districts_name_key UNIQUE (name);
                 END IF;
 
+                -- ── categories ─────────────────────────────────────
                 IF NOT EXISTS (
-                    SELECT 1 FROM pg_constraint
-                    WHERE conname = 'categories_name_key'
+                    SELECT 1 FROM pg_constraint WHERE conname = 'categories_name_key'
                 ) THEN
-                    DELETE FROM categories
-                    WHERE id NOT IN (
-                        SELECT MIN(id) FROM categories GROUP BY name
+                    UPDATE searches s
+                    SET category_id = (
+                        SELECT MIN(id) FROM categories c WHERE c.name = (
+                            SELECT name FROM categories WHERE id = s.category_id
+                        )
+                    )
+                    WHERE category_id IN (
+                        SELECT id FROM categories
+                        WHERE name IN (
+                            SELECT name FROM categories GROUP BY name HAVING COUNT(*) > 1
+                        )
+                        AND id NOT IN (SELECT MIN(id) FROM categories GROUP BY name)
                     );
+
+                    UPDATE providers p
+                    SET category_id = (
+                        SELECT MIN(id) FROM categories c WHERE c.name = (
+                            SELECT name FROM categories WHERE id = p.category_id
+                        )
+                    )
+                    WHERE category_id IN (
+                        SELECT id FROM categories
+                        WHERE name IN (
+                            SELECT name FROM categories GROUP BY name HAVING COUNT(*) > 1
+                        )
+                        AND id NOT IN (SELECT MIN(id) FROM categories GROUP BY name)
+                    );
+
+                    DELETE FROM categories
+                    WHERE id NOT IN (SELECT MIN(id) FROM categories GROUP BY name);
+
                     ALTER TABLE categories ADD CONSTRAINT categories_name_key UNIQUE (name);
                 END IF;
             END $$;
         """)
 
-        # Вставляем данные — теперь ON CONFLICT (name) работает корректно
+        # Вставляем/обновляем районы
         await conn.execute("""
             INSERT INTO districts (name, name_ky, sort_order) VALUES
                 ('Каракол',    'Каракол',     1),
@@ -114,6 +157,7 @@ async def setup_db():
             ON CONFLICT (name) DO UPDATE SET sort_order = EXCLUDED.sort_order;
         """)
 
+        # Вставляем/обновляем категории
         realty_bot = os.getenv("REALTY_BOT_URL", "https://t.me/kabarman_realty_bot")
         await conn.execute("""
             INSERT INTO categories (name, emoji, sort_order, redirect_bot_url) VALUES
