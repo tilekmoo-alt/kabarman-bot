@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 
 from aiogram import Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 
@@ -15,8 +16,12 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 
 async def main():
     await setup_db()
-    bot = Bot(token=os.getenv("BOT_TOKEN"), parse_mode=ParseMode.HTML)
-    dp  = Dispatcher(storage=MemoryStorage())
+
+    bot = Bot(
+        token=os.getenv("BOT_TOKEN"),
+        default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN)
+    )
+    dp = Dispatcher(storage=MemoryStorage())
 
     dp.include_router(start.router)
     dp.include_router(search.router)
