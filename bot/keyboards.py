@@ -17,7 +17,7 @@ def districts_keyboard(districts, action="sd"):
     for d in districts:
         builder.button(text=f"📍 {d['name']}", callback_data=f"{action}:{d['id']}")
     builder.button(text="🏠 Главное меню", callback_data="main_menu")
-    builder.adjust(1)  # одна колонка — без дублирования
+    builder.adjust(2)  # одна колонка — без дублирования
     return builder.as_markup()
 
 # ── Категории ─────────────────────────────────────────────
@@ -27,7 +27,7 @@ def categories_keyboard(categories, action="sc"):
         builder.button(text=f"{cat['emoji']} {cat['name']}", callback_data=f"{action}:{cat['id']}")
     builder.button(text="◀️ Назад к районам", callback_data="back_districts_search")
     builder.button(text="🏠 Главное меню", callback_data="main_menu")
-    builder.adjust(1)
+    builder.adjust(2)
     return builder.as_markup()
 
 def reg_categories_keyboard(categories):
@@ -35,7 +35,7 @@ def reg_categories_keyboard(categories):
     for cat in categories:
         builder.button(text=f"{cat['emoji']} {cat['name']}", callback_data=f"rc:{cat['id']}")
     builder.button(text="🏠 Главное меню", callback_data="main_menu")
-    builder.adjust(1)
+    builder.adjust(2)
     return builder.as_markup()
 
 # ── Карточка провайдера ───────────────────────────────────
