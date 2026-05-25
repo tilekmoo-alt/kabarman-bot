@@ -16,20 +16,16 @@ from db.queries import (
 router = Router()
 ADMIN_IDS = [int(x) for x in os.getenv("ADMIN_IDS", "0").split(",") if x]
 
-@router.message(F.text == "📋 Зарегистрировать бизнес")
-async def register_start(msg: Message, state: FSMContext):
-    """Всегда разрешаем регистрацию — один пользователь может иметь несколько бизнесов"""
-    await state.clear()
-    cats = await get_categories()
+@router.message(RegisterStates.entering_address)
+async def reg_address(msg: Message, state: FSMContext):
+    await state.update_data(address=msg.text.strip())
     await msg.answer(
-        "📋 *Регистрация в Кабарман*\n\n"
-        "Бесплатно. После проверки появитесь в каталоге.\n"
-        "💡 Для управления своими бизнесами: /mybiz\n\n"
-        "1️⃣ из 7️⃣ — *Выберите категорию:*",
-        parse_mode="Markdown",
-        reply_markup=reg_categories_keyboard(cats)
+        "7️⃣ из 7️⃣ — Ваш Instagram или другая соцсеть:\n\n"
+        "Напишите @никнейм, например: @mykafe\n\n"
+        "Или нажмите ⏭ Пропустить если нет",
+        reply_markup=skip_keyboard("skip_social")
     )
-    await state.set_state(RegisterStates.choosing_category)
+    await state.set_state(RegisterStates.entering_social)
 
 @router.callback_query(F.data.startswith("rc:"))
 async def reg_category(cb: CallbackQuery, state: FSMContext):
