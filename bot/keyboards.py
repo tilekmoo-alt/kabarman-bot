@@ -53,9 +53,16 @@ def provider_result_keyboard(provider):
     if provider.get('tg_username'):
         builder.button(text="✈️ Telegram", url=f"https://t.me/{provider['tg_username']}")
 
-    # Instagram — только если это URL, @никнейм показываем в карточке
-    if provider.get('social_link') and provider['social_link'].startswith('http'):
-        builder.button(text="📸 Instagram", url=provider['social_link'])
+    # Instagram — @никнейм или ссылка
+    if provider.get('social_link'):
+        social = provider['social_link']
+        if social.startswith('@'):
+            url = f"https://instagram.com/{social[1:]}"
+        elif social.startswith('http'):
+            url = social
+        else:
+            url = f"https://instagram.com/{social}"
+        builder.button(text="📸 Instagram", url=url)
 
     # Карта — если есть адрес
     if provider.get('address'):
