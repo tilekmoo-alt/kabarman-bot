@@ -185,8 +185,8 @@ async def back_to_cats(cb: CallbackQuery, state: FSMContext):
 # ── Форматирование карточки ───────────────────────────────
 def _format_card(p) -> str:
     lines = [
-        f"━━━━━━━━━━━━━━━━━━━━",
-        f"{p['cat_emoji']} *{p['name']}*",
+        "━━━━━━━━━━━━━━━━━━━━",
+        f"{p['cat_emoji']} {p['name']}",
         f"📁 {p['cat_name']} · 📍 {p['district_name']}",
     ]
     if p.get('description'):
@@ -194,7 +194,5 @@ def _format_card(p) -> str:
     if p.get('address'):
         lines.append(f"🏠 {p['address']}")
     lines.append(f"📞 {p['phone']}")
-    if p.get('social_link'):
-        lines.append(f"🔗 {p['social_link']}")
     lines.append("━━━━━━━━━━━━━━━━━━━━")
     return "\n".join(lines)
