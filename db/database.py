@@ -161,7 +161,8 @@ async def setup_db():
                 ('Недвижимость',       '🏠',   10,  $1),
                 ('Фото и видео',       '📸',  11,  NULL),
                 ('IT и компьютеры',    '💻',  12,  NULL),
-                ('Другие услуги',      '📋',  13,  NULL)
+                ('Производство',       '🏭',  13,  NULL),
+                ('Другие услуги',      '📋',  14,  NULL)
             ON CONFLICT (name) DO UPDATE SET
                 emoji = EXCLUDED.emoji,
                 sort_order = EXCLUDED.sort_order;
