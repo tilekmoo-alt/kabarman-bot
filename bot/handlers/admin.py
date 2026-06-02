@@ -1,3 +1,4 @@
+import html
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
@@ -14,6 +15,7 @@ router = Router()
 ADMIN_IDS = [int(x) for x in os.getenv("ADMIN_IDS", "0").split(",") if x]
 
 def is_admin(uid): return uid in ADMIN_IDS
+def esc(text): return html.escape(str(text)) if text else ''
 
 def admin_active_keyboard(provider_id: int):
     builder = InlineKeyboardBuilder()
@@ -32,17 +34,17 @@ def confirm_admin_delete_keyboard(provider_id: int):
 async def admin_panel(msg: Message):
     if not is_admin(msg.from_user.id): return
     providers, pending, clients, searches, by_district = await get_stats()
-    district_lines = "\n".join(f"  📍 {r['name']}: *{r['cnt']}*" for r in by_district)
+    district_lines = "\n".join(f"  📍 {esc(r['name'])}: <b>{r['cnt']}</b>" for r in by_district)
     await msg.answer(
-        "🛠 *Панель — Кабарман*\n\n"
-        f"✅ Активных: *{providers}*\n"
-        f"⏳ На проверке: *{pending}*\n"
-        f"👥 Клиентов: *{clients}*\n"
-        f"🔍 Поисков: *{searches}*\n\n"
+        "🛠 <b>Панель — Кабарман</b>\n\n"
+        f"✅ Активных: <b>{providers}</b>\n"
+        f"⏳ На проверке: <b>{pending}</b>\n"
+        f"👥 Клиентов: <b>{clients}</b>\n"
+        f"🔍 Поисков: <b>{searches}</b>\n\n"
         f"По районам:\n{district_lines}\n\n"
         "/pending — заявки на проверку\n"
         "/active — активный каталог",
-        parse_mode="Markdown"
+        parse_mode="HTML"
     )
 
 @router.message(Command("pending"))
@@ -53,13 +55,13 @@ async def admin_pending(msg: Message):
         await msg.answer("✅ Нет заявок на проверку"); return
     for p in providers:
         await msg.answer(
-            f"⏳ *Заявка #{p['id']}*\n"
-            f"📁 {p['cat_name']} · 📍 {p['district_name']}\n"
-            f"🏷️ {p['name']}\n"
-            f"📞 {p['phone']}\n"
-            f"📝 {p['description']}\n"
-            f"🏠 {p['address']}",
-            parse_mode="Markdown",
+            f"⏳ <b>Заявка #{p['id']}</b>\n"
+            f"📁 {esc(p['cat_name'])} · 📍 {esc(p['district_name'])}\n"
+            f"🏷️ {esc(p['name'])}\n"
+            f"📞 {esc(p['phone'])}\n"
+            f"📝 {esc(p.get('description',''))}\n"
+            f"🏠 {esc(p.get('address',''))}",
+            parse_mode="HTML",
             reply_markup=admin_provider_keyboard(p['id'])
         )
 
@@ -71,10 +73,10 @@ async def admin_active(msg: Message):
         await msg.answer("Каталог пуст"); return
     for p in providers:
         await msg.answer(
-            f"✅ *#{p['id']} {p['name']}*\n"
-            f"📁 {p['cat_name']} · 📍 {p['district_name']}\n"
-            f"📞 {p['phone']}",
-            parse_mode="Markdown",
+            f"✅ <b>#{p['id']} {esc(p['name'])}</b>\n"
+            f"📁 {esc(p['cat_name'])} · 📍 {esc(p['district_name'])}\n"
+            f"📞 {esc(p['phone'])}",
+            parse_mode="HTML",
             reply_markup=admin_active_keyboard(p['id'])
         )
 
@@ -84,18 +86,18 @@ async def cb_approve(cb: CallbackQuery):
         await cb.answer("⛔ Нет доступа", show_alert=True); return
     provider_id = int(cb.data.split(":")[1])
     await approve_provider(provider_id)
-    await cb.message.edit_text(cb.message.text + "\n\n✅ *ОДОБРЕНО*", parse_mode="Markdown")
-
+    await cb.message.edit_text(
+        cb.message.text + "\n\n✅ ОДОБРЕНО"
+    )
     from db.database import get_pool
     p = await (await get_pool()).fetchrow("SELECT * FROM providers WHERE id=$1", provider_id)
-    if p:
+    if p and p['tg_id'] and p['tg_id'] != 0:
         try:
             await cb.bot.send_message(
                 p['tg_id'],
-                f"🎉 *Ваш бизнес одобрен!*\n\n"
-                f"*{p['name']}* теперь виден всем в Кабарман 📣\n\n"
-                f"Управление: /mybiz",
-                parse_mode="Markdown"
+                f"🎉 Ваш бизнес одобрен!\n\n"
+                f"{esc(p['name'])} теперь виден всем в Кабарман 📣\n\n"
+                f"Управление: /mybiz"
             )
         except Exception: pass
     await cb.answer("✅ Одобрено!")
@@ -106,11 +108,10 @@ async def cb_reject(cb: CallbackQuery):
         await cb.answer("⛔ Нет доступа", show_alert=True); return
     provider_id = int(cb.data.split(":")[1])
     await reject_provider(provider_id)
-    await cb.message.edit_text(cb.message.text + "\n\n❌ *ОТКЛОНЕНО*", parse_mode="Markdown")
-
+    await cb.message.edit_text(cb.message.text + "\n\n❌ ОТКЛОНЕНО")
     from db.database import get_pool
     p = await (await get_pool()).fetchrow("SELECT * FROM providers WHERE id=$1", provider_id)
-    if p:
+    if p and p['tg_id'] and p['tg_id'] != 0:
         try:
             await cb.bot.send_message(p['tg_id'],
                 "❌ Ваша заявка отклонена.\nПо вопросам: @kabarman_admin")

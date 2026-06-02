@@ -14,6 +14,13 @@ async def setup_db():
     async with pool.acquire() as conn:
 
         await conn.execute("""
+            CREATE TABLE IF NOT EXISTS oblasts (
+                id SERIAL PRIMARY KEY,
+                name TEXT UNIQUE NOT NULL,
+                sort_order INTEGER DEFAULT 0,
+                is_active BOOLEAN DEFAULT true
+            );
+
             CREATE TABLE IF NOT EXISTS districts (
                 id SERIAL PRIMARY KEY,
                 name TEXT NOT NULL,
@@ -72,9 +79,10 @@ async def setup_db():
             ALTER TABLE searches ADD COLUMN IF NOT EXISTS query TEXT;
             ALTER TABLE searches ADD COLUMN IF NOT EXISTS district_id INTEGER REFERENCES districts(id);
             ALTER TABLE categories ADD COLUMN IF NOT EXISTS redirect_bot_url TEXT DEFAULT NULL;
+            ALTER TABLE districts ADD COLUMN IF NOT EXISTS oblast_id INTEGER REFERENCES oblasts(id);
         """)
 
-        # Миграция: удаляем UNIQUE(tg_id) с providers — один юзер может иметь несколько бизнесов
+        # Миграция: удаляем UNIQUE(tg_id) с providers
         await conn.execute("""
             DO $$
             BEGIN
@@ -95,7 +103,6 @@ async def setup_db():
                 dist_name TEXT;
                 cat_name TEXT;
             BEGIN
-                -- ── districts ──────────────────────────────────────
                 IF NOT EXISTS (
                     SELECT 1 FROM pg_constraint WHERE conname = 'districts_name_key'
                 ) THEN
@@ -111,7 +118,6 @@ async def setup_db():
                     ALTER TABLE districts ADD CONSTRAINT districts_name_key UNIQUE (name);
                 END IF;
 
-                -- ── categories ─────────────────────────────────────
                 IF NOT EXISTS (
                     SELECT 1 FROM pg_constraint WHERE conname = 'categories_name_key'
                 ) THEN
@@ -133,16 +139,66 @@ async def setup_db():
             END $$;
         """)
 
-        # Вставляем районы
+        # Вставляем области
         await conn.execute("""
-            INSERT INTO districts (name, name_ky, sort_order) VALUES
-                ('Каракол',    'Каракол',     1),
-                ('Ак-Суу',     'Ак-Суу',      2),
-                ('Тюп',        'Тюп',         3),
-                ('Жети-Огуз',  'Жети-Өгүз',   4),
-                ('Тон',        'Тон',         5),
-                ('Чолпон-Ата', 'Чолпон-Ата',  6)
-            ON CONFLICT (name) DO UPDATE SET sort_order = EXCLUDED.sort_order;
+            INSERT INTO oblasts (name, sort_order) VALUES
+                ('Бишкек',               1),
+                ('Ош',                   2),
+                ('Чуйская область',      3),
+                ('Иссык-Кульская обл.',  4),
+                ('Жалал-Абадская обл.',  5),
+                ('Ошская область',       6),
+                ('Нарынская область',    7),
+                ('Таласская область',    8),
+                ('Баткенская область',   9)
+            ON CONFLICT (name) DO NOTHING;
+        """)
+
+        # Привязываем существующие районы Иссык-Куля к области
+        await conn.execute("""
+            UPDATE districts
+            SET oblast_id = (SELECT id FROM oblasts WHERE name = 'Иссык-Кульская обл.')
+            WHERE name IN ('Каракол','Ак-Суу','Тюп','Жети-Огуз','Тон','Чолпон-Ата')
+              AND oblast_id IS NULL;
+        """)
+
+        # Обновляем/вставляем все районы с привязкой к области
+        await conn.execute("""
+            INSERT INTO districts (name, sort_order, oblast_id)
+            SELECT v.dname, v.sorder, o.id
+            FROM (VALUES
+                ('Каракол',       1::int, 'Иссык-Кульская обл.'),
+                ('Чолпон-Ата',    2::int, 'Иссык-Кульская обл.'),
+                ('Ак-Суу',        3::int, 'Иссык-Кульская обл.'),
+                ('Тюп',           4::int, 'Иссык-Кульская обл.'),
+                ('Жети-Огуз',     5::int, 'Иссык-Кульская обл.'),
+                ('Тон',           6::int, 'Иссык-Кульская обл.'),
+                ('Бишкек',        1::int, 'Бишкек'),
+                ('Ош',            1::int, 'Ош'),
+                ('Кара-Балта',    1::int, 'Чуйская область'),
+                ('Кант',          2::int, 'Чуйская область'),
+                ('Токмок',        3::int, 'Чуйская область'),
+                ('Сокулук',       4::int, 'Чуйская область'),
+                ('Аламудун',      5::int, 'Чуйская область'),
+                ('Кемин',         6::int, 'Чуйская область'),
+                ('Жалал-Абад',    1::int, 'Жалал-Абадская обл.'),
+                ('Таш-Кумыр',     2::int, 'Жалал-Абадская обл.'),
+                ('Кара-Куль',     3::int, 'Жалал-Абадская обл.'),
+                ('Базар-Коргон',  4::int, 'Жалал-Абадская обл.'),
+                ('Кара-Суу',      1::int, 'Ошская область'),
+                ('Узген',         2::int, 'Ошская область'),
+                ('Ноокат',        3::int, 'Ошская область'),
+                ('Нарын',         1::int, 'Нарынская область'),
+                ('Ат-Баши',       2::int, 'Нарынская область'),
+                ('Кочкор',        3::int, 'Нарынская область'),
+                ('Талас',         1::int, 'Таласская область'),
+                ('Бакай-Ата',     2::int, 'Таласская область'),
+                ('Баткен',        1::int, 'Баткенская область'),
+                ('Кадамжай',      2::int, 'Баткенская область'),
+                ('Лейлек',        3::int, 'Баткенская область')
+            ) AS v(dname, sorder, oname)
+            JOIN oblasts o ON o.name = v.oname
+            ON CONFLICT (name) DO UPDATE SET oblast_id = EXCLUDED.oblast_id;
         """)
 
         # Вставляем категории
@@ -155,14 +211,16 @@ async def setup_db():
                 ('Ремонт и стройка',   '🔨',   4,  NULL),
                 ('Сантехника',         '🔧',   5,  NULL),
                 ('Электрика',          '⚡',   6,  NULL),
-                ('Ателье и пошив',     '🧵',   7, NULL),
-                ('Репетиторы',         '📚',   8,  NULL),
-                ('Грузоперевозки',     '🚛',   9,  NULL),
-                ('Недвижимость',       '🏠',   10,  $1),
-                ('Фото и видео',       '📸',  11,  NULL),
-                ('IT и компьютеры',    '💻',  12,  NULL),
-                ('Производство',       '🏭',  13,  NULL),
-                ('Другие услуги',      '📋',  14,  NULL)
+                ('Ателье и пошив',     '🧵',   7,  NULL),
+                ('Автосервис (СТО)',   '🚗',   8,  NULL),
+                ('Прокат',             '🎿',   9,  NULL),
+                ('Репетиторы',         '📚',  10,  NULL),
+                ('Грузоперевозки',     '🚛',  11,  NULL),
+                ('Недвижимость',       '🏠',  12,  $1),
+                ('Фото и видео',       '📸',  13,  NULL),
+                ('IT и компьютеры',    '💻',  14,  NULL),
+                ('Производство',       '🏭',  15,  NULL),
+                ('Другие услуги',      '📋',  16,  NULL)
             ON CONFLICT (name) DO UPDATE SET
                 emoji = EXCLUDED.emoji,
                 sort_order = EXCLUDED.sort_order;

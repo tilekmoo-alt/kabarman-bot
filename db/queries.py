@@ -1,9 +1,25 @@
 from db.database import get_pool
 
+# ── Области ───────────────────────────────────────────────
+async def get_oblasts():
+    pool = await get_pool()
+    return await pool.fetch("SELECT * FROM oblasts WHERE is_active=true ORDER BY sort_order")
+
+async def get_oblast(oblast_id: int):
+    pool = await get_pool()
+    return await pool.fetchrow("SELECT * FROM oblasts WHERE id=$1", oblast_id)
+
 # ── Районы ────────────────────────────────────────────────
 async def get_districts():
     pool = await get_pool()
     return await pool.fetch("SELECT * FROM districts WHERE is_active=true ORDER BY sort_order")
+
+async def get_districts_by_oblast(oblast_id: int):
+    pool = await get_pool()
+    return await pool.fetch(
+        "SELECT * FROM districts WHERE oblast_id=$1 AND is_active=true ORDER BY sort_order",
+        oblast_id
+    )
 
 async def get_district(dist_id: int):
     pool = await get_pool()
@@ -20,7 +36,6 @@ async def get_category(cat_id: int):
 
 # ── Провайдеры ────────────────────────────────────────────
 async def get_providers_by_tg(tg_id: int):
-    """Все бизнесы одного пользователя"""
     pool = await get_pool()
     return await pool.fetch("""
         SELECT p.*, c.name AS cat_name, c.emoji AS cat_emoji,
@@ -38,7 +53,6 @@ async def get_provider_by_id(provider_id: int):
 
 async def create_provider(tg_id, tg_username, name, phone, category_id,
                            district_id, description, address, social_link=None):
-    """Создаёт новый бизнес — один пользователь может иметь несколько"""
     pool = await get_pool()
     return await pool.fetchrow("""
         INSERT INTO providers
@@ -50,16 +64,13 @@ async def create_provider(tg_id, tg_username, name, phone, category_id,
          district_id, description, address, social_link)
 
 async def delete_provider(provider_id: int, tg_id: int):
-    """Мягкое удаление — только своего бизнеса"""
     pool = await get_pool()
-    result = await pool.execute("""
+    return await pool.execute("""
         UPDATE providers SET is_active=false
         WHERE id=$1 AND tg_id=$2
     """, provider_id, tg_id)
-    return result
 
 async def admin_delete_provider(provider_id: int):
-    """Админ удаляет любой бизнес"""
     pool = await get_pool()
     await pool.execute("UPDATE providers SET is_active=false WHERE id=$1", provider_id)
 
@@ -123,7 +134,7 @@ async def get_or_create_client(tg_id, tg_username, name):
         RETURNING *
     """, tg_id, tg_username, name)
 
-# ── Статистика ─────────────────────────────────────────────
+# ── Статистика ────────────────────────────────────────────
 async def log_search(client_id, category_id, district_id, results_count, query=None):
     pool = await get_pool()
     await pool.execute("""

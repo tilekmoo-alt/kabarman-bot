@@ -1,4 +1,4 @@
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+from aiogram.types import ReplyKeyboardRemove
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 
 # ── Главное меню ──────────────────────────────────────────
@@ -11,13 +11,34 @@ def main_menu():
     kb.adjust(1)
     return kb.as_markup(resize_keyboard=True)
 
+# ── Области ───────────────────────────────────────────────
+def oblasts_keyboard(oblasts, action="so"):
+    builder = InlineKeyboardBuilder()
+    for o in oblasts:
+        builder.button(text=f"🗺 {o['name']}", callback_data=f"{action}:{o['id']}")
+    builder.button(text="🏠 Главное меню", callback_data="main_menu")
+    builder.adjust(2)
+    return builder.as_markup()
+
+def reg_oblasts_keyboard(oblasts):
+    return oblasts_keyboard(oblasts, action="ro")
+
 # ── Районы ────────────────────────────────────────────────
 def districts_keyboard(districts, action="sd"):
     builder = InlineKeyboardBuilder()
     for d in districts:
         builder.button(text=f"📍 {d['name']}", callback_data=f"{action}:{d['id']}")
+    builder.button(text="◀️ Назад к областям", callback_data="back_oblasts_search")
     builder.button(text="🏠 Главное меню", callback_data="main_menu")
-    builder.adjust(2)  # одна колонка — без дублирования
+    builder.adjust(2)
+    return builder.as_markup()
+
+def reg_districts_keyboard(districts):
+    builder = InlineKeyboardBuilder()
+    for d in districts:
+        builder.button(text=f"📍 {d['name']}", callback_data=f"rd:{d['id']}")
+    builder.button(text="◀️ Назад к областям", callback_data="back_oblasts_reg")
+    builder.adjust(2)
     return builder.as_markup()
 
 # ── Категории ─────────────────────────────────────────────
@@ -42,18 +63,15 @@ def reg_categories_keyboard(categories):
 def provider_result_keyboard(provider):
     builder = InlineKeyboardBuilder()
 
-    # WhatsApp
     wa_num = provider['phone'].replace('+', '').replace(' ', '').replace('-', '')
     builder.button(
         text="💬 WhatsApp",
         url=f"https://wa.me/{wa_num}?text=Здравствуйте%2C+нашёл+вас+через+Кабарман"
     )
 
-    # Telegram
     if provider.get('tg_username'):
         builder.button(text="✈️ Telegram", url=f"https://t.me/{provider['tg_username']}")
 
-    # Instagram — @никнейм или ссылка
     if provider.get('social_link'):
         social = provider['social_link']
         if social.startswith('@'):
@@ -64,17 +82,10 @@ def provider_result_keyboard(provider):
             url = f"https://instagram.com/{social}"
         builder.button(text="📸 Instagram", url=url)
 
-    # Карта — если есть адрес
     if provider.get('address'):
         addr_encoded = provider['address'].replace(' ', '+')
-        builder.button(
-            text="🗺 2GIS",
-            url=f"https://2gis.kg/search/{addr_encoded}"
-        )
-        builder.button(
-            text="📍 Google Maps",
-            url=f"https://www.google.com/maps/search/{addr_encoded}"
-        )
+        builder.button(text="🗺 2GIS", url=f"https://2gis.kg/search/{addr_encoded}")
+        builder.button(text="📍 Google Maps", url=f"https://www.google.com/maps/search/{addr_encoded}")
 
     builder.adjust(2)
     return builder.as_markup()
