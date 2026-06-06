@@ -9,7 +9,7 @@ from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from db.database import setup_db
-from bot.handlers import start, search, register, admin, mybiz
+from bot.handlers import start, search, register, admin, mybiz, listing
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -18,13 +18,14 @@ async def main():
     await setup_db()
     bot = Bot(
         token=os.getenv("BOT_TOKEN"),
-        default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN)
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
     dp = Dispatcher(storage=MemoryStorage())
 
     dp.include_router(start.router)
     dp.include_router(search.router)
     dp.include_router(register.router)
+    dp.include_router(listing.router)
     dp.include_router(mybiz.router)
     dp.include_router(admin.router)
 

@@ -9,13 +9,13 @@ import os
 router = Router()
 
 WELCOME_TEXT = """
-👋 *Салам! Добро пожаловать в KABARMAN* 📣
+👋 <b>Салам! Добро пожаловать в KABARMAN</b> 📣
 
-Справочник услуг и бизнеса
-*Иссык-Кульской области*
+Справочник услуг и бизнеса <b>Кыргызстана</b>
 
-🔍 *Найти* — кафе, мастера, специалиста
-📋 *Зарегистрировать* свой бизнес бесплатно
+🔍 <b>Найти</b> — кафе, мастера, специалиста
+📢 <b>Объявления</b> — купля-продажа, скот, авто
+📋 <b>Зарегистрировать</b> свой бизнес бесплатно
 
 Выберите что вам нужно 👇
 """
@@ -29,7 +29,7 @@ async def send_welcome(message: Message):
         await message.answer_photo(
             photo=logo_file_id,
             caption=WELCOME_TEXT,
-            parse_mode="Markdown",
+            parse_mode="HTML",
             reply_markup=main_menu()
         )
     elif os.path.exists("welcome.jpg"):
@@ -38,7 +38,7 @@ async def send_welcome(message: Message):
         sent = await message.answer_photo(
             photo=photo,
             caption=WELCOME_TEXT,
-            parse_mode="Markdown",
+            parse_mode="HTML",
             reply_markup=main_menu()
         )
         # Выводим file_id в лог — скопируй и добавь в Railway Variables
@@ -49,7 +49,7 @@ async def send_welcome(message: Message):
         # Без картинки
         await message.answer(
             WELCOME_TEXT,
-            parse_mode="Markdown",
+            parse_mode="HTML",
             reply_markup=main_menu()
         )
 

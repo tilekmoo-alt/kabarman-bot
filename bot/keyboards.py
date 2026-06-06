@@ -1,15 +1,67 @@
 from aiogram.types import ReplyKeyboardRemove
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 
+LISTING_CATS = [
+    ('🚗', 'Транспорт'),
+    ('🐄', 'Скот и животные'),
+    ('🏠', 'Недвижимость'),
+    ('📱', 'Электроника'),
+    ('👗', 'Одежда и обувь'),
+    ('🛋', 'Мебель и дом'),
+    ('🌾', 'С/х и техника'),
+    ('💼', 'Работа'),
+    ('📦', 'Другое'),
+]
+
 # ── Главное меню ──────────────────────────────────────────
 def main_menu():
     kb = ReplyKeyboardBuilder()
     kb.button(text="🔍 Найти услугу")
     kb.button(text="🔎 Поиск по слову")
+    kb.button(text="📢 Объявления")
     kb.button(text="📋 Зарегистрировать бизнес")
     kb.button(text="ℹ️ О Кабарман")
     kb.adjust(1)
     return kb.as_markup(resize_keyboard=True)
+
+# ── Объявления ────────────────────────────────────────────
+def listing_menu():
+    builder = InlineKeyboardBuilder()
+    builder.button(text="📋 Смотреть объявления", callback_data="listings_browse")
+    builder.button(text="➕ Подать объявление",   callback_data="listings_new")
+    builder.button(text="📁 Мои объявления",       callback_data="listings_mine")
+    builder.adjust(1)
+    return builder.as_markup()
+
+def listing_categories_keyboard():
+    builder = InlineKeyboardBuilder()
+    for emoji, name in LISTING_CATS:
+        builder.button(text=f"{emoji} {name}", callback_data=f"lcat:{name}")
+    builder.button(text="🏠 Главное меню", callback_data="main_menu")
+    builder.adjust(2)
+    return builder.as_markup()
+
+def listing_photo_keyboard(count: int):
+    builder = InlineKeyboardBuilder()
+    if count > 0:
+        builder.button(text=f"✅ Готово ({count} фото)", callback_data="lphoto_done")
+    builder.button(text="⏭ Пропустить фото", callback_data="lphoto_skip")
+    builder.adjust(1)
+    return builder.as_markup()
+
+def listing_price_keyboard():
+    builder = InlineKeyboardBuilder()
+    builder.button(text="🤝 Договорная", callback_data="lprice_negotiable")
+    builder.button(text="🆓 Бесплатно",  callback_data="lprice_free")
+    builder.adjust(2)
+    return builder.as_markup()
+
+def listing_confirm_keyboard():
+    builder = InlineKeyboardBuilder()
+    builder.button(text="✅ Опубликовать", callback_data="listing_confirm")
+    builder.button(text="✏️ Начать заново", callback_data="listing_restart")
+    builder.adjust(1)
+    return builder.as_markup()
 
 # ── Области ───────────────────────────────────────────────
 def oblasts_keyboard(oblasts, action="so"):

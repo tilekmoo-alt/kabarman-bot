@@ -134,6 +134,59 @@ async def get_or_create_client(tg_id, tg_username, name):
         RETURNING *
     """, tg_id, tg_username, name)
 
+# ── Объявления ────────────────────────────────────────────
+async def create_listing(title, description, price, is_negotiable,
+                          photos, category, oblast_id, district_id,
+                          contact_name, contact_phone, tg_username, tg_id, source='bot'):
+    pool = await get_pool()
+    return await pool.fetchrow("""
+        INSERT INTO listings (title, description, price, is_negotiable,
+            photos, category, oblast_id, district_id,
+            contact_name, contact_phone, tg_username, tg_id, source)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+        RETURNING *
+    """, title, description, price, is_negotiable,
+        photos, category, oblast_id, district_id,
+        contact_name, contact_phone, tg_username, tg_id, source)
+
+async def get_listings(category=None, oblast_id=None, district_id=None, limit=20, offset=0):
+    pool = await get_pool()
+    conditions = ["is_active=true", "expires_at > NOW()"]
+    params = []
+    if category:
+        params.append(category)
+        conditions.append(f"category=${len(params)}")
+    if oblast_id:
+        params.append(oblast_id)
+        conditions.append(f"oblast_id=${len(params)}")
+    if district_id:
+        params.append(district_id)
+        conditions.append(f"district_id=${len(params)}")
+    params += [limit, offset]
+    where = " AND ".join(conditions)
+    return await pool.fetch(f"""
+        SELECT l.*, o.name AS oblast_name, d.name AS district_name
+        FROM listings l
+        LEFT JOIN oblasts o ON l.oblast_id = o.id
+        LEFT JOIN districts d ON l.district_id = d.id
+        WHERE {where}
+        ORDER BY l.created_at DESC
+        LIMIT ${len(params)-1} OFFSET ${len(params)}
+    """, *params)
+
+async def get_listings_by_tg(tg_id: int):
+    pool = await get_pool()
+    return await pool.fetch("""
+        SELECT * FROM listings WHERE tg_id=$1 AND is_active=true ORDER BY created_at DESC
+    """, tg_id)
+
+async def deactivate_listing(listing_id: int, tg_id: int):
+    pool = await get_pool()
+    await pool.execute(
+        "UPDATE listings SET is_active=false WHERE id=$1 AND tg_id=$2",
+        listing_id, tg_id
+    )
+
 # ── Статистика ────────────────────────────────────────────
 async def log_search(client_id, category_id, district_id, results_count, query=None):
     pool = await get_pool()

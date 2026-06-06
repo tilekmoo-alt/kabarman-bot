@@ -226,4 +226,27 @@ async def setup_db():
                 sort_order = EXCLUDED.sort_order;
         """, realty_bot)
 
+        # Таблица объявлений (marketplace)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS listings (
+                id            SERIAL PRIMARY KEY,
+                title         TEXT NOT NULL,
+                description   TEXT,
+                price         INTEGER,
+                is_negotiable BOOLEAN DEFAULT false,
+                photos        TEXT[] DEFAULT '{}',
+                category      TEXT NOT NULL,
+                oblast_id     INTEGER REFERENCES oblasts(id),
+                district_id   INTEGER REFERENCES districts(id),
+                contact_name  TEXT,
+                contact_phone TEXT NOT NULL,
+                tg_username   TEXT,
+                tg_id         BIGINT,
+                source        TEXT DEFAULT 'web',
+                is_active     BOOLEAN DEFAULT true,
+                expires_at    TIMESTAMP DEFAULT NOW() + INTERVAL '30 days',
+                created_at    TIMESTAMP DEFAULT NOW()
+            );
+        """)
+
     print("✅ База данных Кабарман готова")

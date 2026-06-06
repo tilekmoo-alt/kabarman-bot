@@ -6,6 +6,17 @@ class SearchStates(StatesGroup):
     choosing_category  = State()
     typing_query       = State()
 
+class ListingStates(StatesGroup):
+    choosing_category  = State()
+    choosing_oblast    = State()
+    choosing_district  = State()
+    entering_title     = State()
+    entering_desc      = State()
+    entering_price     = State()
+    uploading_photos   = State()
+    entering_contact   = State()
+    confirming         = State()
+
 class RegisterStates(StatesGroup):
     choosing_category  = State()
     choosing_oblast    = State()
