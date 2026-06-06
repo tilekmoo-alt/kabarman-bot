@@ -2,20 +2,21 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, FSInputFile
 from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
-from bot.keyboards import main_menu
+from bot.keyboards import main_menu, services_menu
 from db.queries import get_or_create_client
 import os
 
 router = Router()
 
 WELCOME_TEXT = """
-👋 <b>Салам! Добро пожаловать в KABARMAN</b> 📣
+👋 <b>Салам! Добро пожаловать в KABARMAN</b>
 
-Справочник услуг и бизнеса <b>Кыргызстана</b>
+Объявления и справочник бизнеса <b>Кыргызстана</b>
 
-🔍 <b>Найти</b> — кафе, мастера, специалиста
-📢 <b>Объявления</b> — купля-продажа, скот, авто
-📋 <b>Зарегистрировать</b> свой бизнес бесплатно
+🛍 <b>Объявления</b> — купля-продажа, скот, авто, техника
+🏢 <b>Услуги</b> — найди мастера, кафе, СТО, специалиста
+📢 <b>Подать объявление</b> — бесплатно, активно 30 дней
+➕ <b>Добавить бизнес</b> — зарегистрируй компанию
 
 Выберите что вам нужно 👇
 """
@@ -63,18 +64,30 @@ async def cmd_start(msg: Message, state: FSMContext):
     )
     await send_welcome(msg)
 
+@router.message(F.text == "🏢 Услуги и бизнес")
+async def services_start(msg: Message, state: FSMContext):
+    await state.clear()
+    await msg.answer(
+        "🏢 <b>Услуги и бизнес</b>\n\n"
+        "Как хотите найти?",
+        parse_mode="HTML",
+        reply_markup=services_menu()
+    )
+
 @router.message(F.text == "ℹ️ О Кабарман")
 async def about(msg: Message):
     await msg.answer(
-        "📣 *KABARMAN — Вестник Иссык-Куля*\n\n"
-        "Бесплатный справочник услуг и бизнеса:\n"
-        "📍 Каракол · Ак-Суу · Тюп\n"
-        "📍 Жети-Огуз · Тон · Чолпон-Ата\n\n"
-        "🔍 Найди нужный сервис по району и категории\n"
-        "📋 Зарегистрируй свой бизнес — бесплатно\n"
-        "💬 Связывайся напрямую через WhatsApp\n\n"
-        "По вопросам: @kabarman_admin",
-        parse_mode="Markdown",
+        "📣 <b>KABARMAN — Кабарман</b>\n\n"
+        "Бесплатные объявления и справочник бизнеса Кыргызстана\n\n"
+        "🛍 Купля-продажа товаров\n"
+        "🏢 Мастера, кафе, СТО, компании\n"
+        "📍 Все области и районы страны\n\n"
+        "🔍 Найди нужный сервис по категории и региону\n"
+        "📢 Подай объявление — бесплатно\n"
+        "➕ Зарегистрируй свой бизнес — бесплатно\n\n"
+        "По вопросам: @kabarman_admin\n"
+        "Сайт: kabarman.kg",
+        parse_mode="HTML",
         reply_markup=main_menu()
     )
 

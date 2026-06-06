@@ -19,15 +19,27 @@ router = Router()
 def esc(text): return html.escape(str(text)) if text else ''
 
 # ── Вход в раздел объявлений ──────────────────────────────
-@router.message(F.text == "📢 Объявления")
+@router.message(F.text == "🛍 Объявления")
 async def listings_menu(msg: Message, state: FSMContext):
     await state.clear()
     await msg.answer(
-        "📢 <b>Объявления Кабарман</b>\n\n"
+        "🛍 <b>Объявления Кабарман</b>\n\n"
         "Купля-продажа, аренда, скот, транспорт и многое другое",
         parse_mode="HTML",
         reply_markup=listing_menu()
     )
+
+# ── Подать объявление прямо из главного меню ──────────────
+@router.message(F.text == "📢 Подать объявление")
+async def listing_new_from_menu(msg: Message, state: FSMContext):
+    await state.clear()
+    await msg.answer(
+        "➕ <b>Новое объявление</b>\n\n"
+        "Шаг 1 из 7 — Выберите категорию:",
+        parse_mode="HTML",
+        reply_markup=listing_categories_keyboard()
+    )
+    await state.set_state(ListingStates.choosing_category)
 
 # ── Смотреть объявления ───────────────────────────────────
 @router.callback_query(F.data == "listings_browse")

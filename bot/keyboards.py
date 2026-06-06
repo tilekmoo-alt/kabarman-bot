@@ -16,19 +16,26 @@ LISTING_CATS = [
 # ── Главное меню ──────────────────────────────────────────
 def main_menu():
     kb = ReplyKeyboardBuilder()
-    kb.button(text="🔍 Найти услугу")
-    kb.button(text="🔎 Поиск по слову")
-    kb.button(text="📢 Объявления")
-    kb.button(text="📋 Зарегистрировать бизнес")
+    kb.button(text="🛍 Объявления")
+    kb.button(text="🏢 Услуги и бизнес")
+    kb.button(text="📢 Подать объявление")
+    kb.button(text="➕ Добавить бизнес")
     kb.button(text="ℹ️ О Кабарман")
-    kb.adjust(1)
+    kb.adjust(2, 2, 1)
     return kb.as_markup(resize_keyboard=True)
+
+# ── Меню услуг ────────────────────────────────────────────
+def services_menu():
+    builder = InlineKeyboardBuilder()
+    builder.button(text="🔍 Найти по категории", callback_data="services_catalog")
+    builder.button(text="🔎 Найти по слову",     callback_data="services_text")
+    builder.adjust(1)
+    return builder.as_markup()
 
 # ── Объявления ────────────────────────────────────────────
 def listing_menu():
     builder = InlineKeyboardBuilder()
     builder.button(text="📋 Смотреть объявления", callback_data="listings_browse")
-    builder.button(text="➕ Подать объявление",   callback_data="listings_new")
     builder.button(text="📁 Мои объявления",       callback_data="listings_mine")
     builder.adjust(1)
     return builder.as_markup()

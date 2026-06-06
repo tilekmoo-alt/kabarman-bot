@@ -20,15 +20,15 @@ ADMIN_IDS = [int(x) for x in os.getenv("ADMIN_IDS", "0").split(",") if x]
 
 def esc(text): return html.escape(str(text)) if text else ''
 
-@router.message(F.text == "📋 Зарегистрировать бизнес")
+@router.message(F.text == "➕ Добавить бизнес")
 async def register_start(msg: Message, state: FSMContext):
     await state.clear()
     cats = await get_categories()
     await msg.answer(
-        "📋 Регистрация в Кабарман\n\n"
-        "Бесплатно. После проверки появитесь в каталоге.\n"
-        "Для управления своими бизнесами: /mybiz\n\n"
+        "➕ <b>Добавить бизнес в Кабарман</b>\n\n"
+        "Бесплатно. После проверки появитесь в каталоге.\n\n"
         "1 из 8 — Выберите категорию:",
+        parse_mode="HTML",
         reply_markup=reg_categories_keyboard(cats)
     )
     await state.set_state(RegisterStates.choosing_category)

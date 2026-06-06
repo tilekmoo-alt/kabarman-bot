@@ -20,16 +20,17 @@ router = Router()
 def esc(text): return html.escape(str(text)) if text else ''
 
 # ── Поиск: шаг 1 — область ───────────────────────────────
-@router.message(F.text == "🔍 Найти услугу")
-async def search_start(msg: Message, state: FSMContext):
+@router.callback_query(F.data == "services_catalog")
+async def search_start(cb: CallbackQuery, state: FSMContext):
     await state.clear()
     oblasts = await get_oblasts()
-    await msg.answer(
+    await cb.message.edit_text(
         "🗺 <b>Шаг 1 из 3 — Выберите область:</b>",
         parse_mode="HTML",
         reply_markup=oblasts_keyboard(oblasts, action="so")
     )
     await state.set_state(SearchStates.choosing_oblast)
+    await cb.answer()
 
 @router.callback_query(F.data.startswith("so:"))
 async def search_oblast_chosen(cb: CallbackQuery, state: FSMContext):
@@ -146,16 +147,17 @@ async def search_results(cb: CallbackQuery, state: FSMContext):
     await cb.answer()
 
 # ── Поиск по тексту ───────────────────────────────────────
-@router.message(F.text == "🔎 Поиск по слову")
-async def text_search_start(msg: Message, state: FSMContext):
+@router.callback_query(F.data == "services_text")
+async def text_search_start(cb: CallbackQuery, state: FSMContext):
     await state.clear()
-    await msg.answer(
+    await cb.message.edit_text(
         "🔎 <b>Поиск по слову</b>\n\n"
         "Напишите что ищете — название, категорию или город:\n\n"
         "<i>Например: сантехник, кафе, Бишкек, ремонт...</i>",
         parse_mode="HTML"
     )
     await state.set_state(SearchStates.typing_query)
+    await cb.answer()
 
 @router.message(SearchStates.typing_query)
 async def text_search_results(msg: Message, state: FSMContext):
