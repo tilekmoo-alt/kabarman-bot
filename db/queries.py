@@ -180,12 +180,18 @@ async def get_listings_by_tg(tg_id: int):
         SELECT * FROM listings WHERE tg_id=$1 AND is_active=true ORDER BY created_at DESC
     """, tg_id)
 
-async def deactivate_listing(listing_id: int, tg_id: int):
+async def deactivate_listing(listing_id: int, tg_id: int = None):
     pool = await get_pool()
-    await pool.execute(
-        "UPDATE listings SET is_active=false WHERE id=$1 AND tg_id=$2",
-        listing_id, tg_id
-    )
+    if tg_id is not None:
+        await pool.execute(
+            "UPDATE listings SET is_active=false WHERE id=$1 AND tg_id=$2",
+            listing_id, tg_id
+        )
+    else:
+        await pool.execute(
+            "UPDATE listings SET is_active=false WHERE id=$1",
+            listing_id
+        )
 
 # ── Статистика ────────────────────────────────────────────
 async def log_search(client_id, category_id, district_id, results_count, query=None):

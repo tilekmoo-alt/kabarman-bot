@@ -8,7 +8,8 @@ import os
 from bot.keyboards import admin_provider_keyboard, main_menu
 from db.queries import (
     get_all_providers_admin, approve_provider,
-    reject_provider, admin_delete_provider, get_stats
+    reject_provider, admin_delete_provider, get_stats,
+    deactivate_listing
 )
 
 router = Router()
@@ -142,3 +143,23 @@ async def cb_admin_del_confirm(cb: CallbackQuery):
 async def cb_admin_cancel(cb: CallbackQuery):
     await cb.message.delete()
     await cb.answer("Отменено")
+
+# ── Удалить объявление (из уведомления или жалобы) ────────
+@router.callback_query(F.data.startswith("del_listing:"))
+async def cb_del_listing(cb: CallbackQuery):
+    if not is_admin(cb.from_user.id):
+        await cb.answer("⛔ Нет доступа", show_alert=True); return
+    listing_id = int(cb.data.split(":")[1])
+    await deactivate_listing(listing_id, tg_id=None)
+    await cb.message.edit_text(cb.message.text + "\n\n🗑 УДАЛЕНО")
+    await cb.answer("Объявление удалено")
+
+# ── Удалить бизнес (из уведомления или жалобы) ────────────
+@router.callback_query(F.data.startswith("del_provider:"))
+async def cb_del_provider(cb: CallbackQuery):
+    if not is_admin(cb.from_user.id):
+        await cb.answer("⛔ Нет доступа", show_alert=True); return
+    provider_id = int(cb.data.split(":")[1])
+    await admin_delete_provider(provider_id)
+    await cb.message.edit_text(cb.message.text + "\n\n🗑 УДАЛЕНО")
+    await cb.answer("Бизнес удалён")
