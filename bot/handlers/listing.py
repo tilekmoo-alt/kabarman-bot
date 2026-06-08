@@ -7,7 +7,7 @@ from bot.states import ListingStates, BrowseStates
 from bot.keyboards import (
     listing_menu, listing_categories_keyboard, listing_photo_keyboard,
     listing_price_keyboard, listing_confirm_keyboard,
-    oblasts_keyboard, reg_districts_keyboard, main_menu,
+    oblasts_keyboard, listing_districts_keyboard, main_menu,
     browse_categories_keyboard, browse_oblasts_keyboard, browse_nav_keyboard,
     post_choice_keyboard
 )
@@ -260,6 +260,19 @@ async def listing_category(cb: CallbackQuery, state: FSMContext):
     await state.set_state(ListingStates.choosing_oblast)
     await cb.answer()
 
+@router.callback_query(F.data == "back_oblasts_listing")
+async def listing_back_to_oblasts(cb: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    oblasts = await get_oblasts()
+    await cb.message.edit_text(
+        f"Категория: <b>{esc(data.get('category',''))}</b> ✅\n\n"
+        "Шаг 2 из 7 — Выберите область:",
+        parse_mode="HTML",
+        reply_markup=oblasts_keyboard(oblasts, action="lo")
+    )
+    await state.set_state(ListingStates.choosing_oblast)
+    await cb.answer()
+
 @router.callback_query(F.data.startswith("lo:"))
 async def listing_oblast(cb: CallbackQuery, state: FSMContext):
     oblast_id = int(cb.data.split(":")[1])
@@ -272,12 +285,12 @@ async def listing_oblast(cb: CallbackQuery, state: FSMContext):
         f"Область: <b>{esc(oblast['name'])}</b> ✅\n\n"
         "Шаг 3 из 7 — Выберите район:",
         parse_mode="HTML",
-        reply_markup=reg_districts_keyboard(districts)
+        reply_markup=listing_districts_keyboard(districts)
     )
     await state.set_state(ListingStates.choosing_district)
     await cb.answer()
 
-@router.callback_query(F.data.startswith("rd:"), ListingStates.choosing_district)
+@router.callback_query(F.data.startswith("ld:"))
 async def listing_district(cb: CallbackQuery, state: FSMContext):
     dist_id = int(cb.data.split(":")[1])
     dist = await get_district(dist_id)

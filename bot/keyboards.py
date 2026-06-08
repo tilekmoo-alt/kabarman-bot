@@ -132,6 +132,14 @@ def districts_keyboard(districts, action="sd"):
     builder.adjust(2)
     return builder.as_markup()
 
+def listing_districts_keyboard(districts):
+    builder = InlineKeyboardBuilder()
+    for d in districts:
+        builder.button(text=f"📍 {d['name']}", callback_data=f"ld:{d['id']}")
+    builder.button(text="◀️ Назад к областям", callback_data="back_oblasts_listing")
+    builder.adjust(2)
+    return builder.as_markup()
+
 def reg_districts_keyboard(districts):
     builder = InlineKeyboardBuilder()
     for d in districts:
