@@ -16,12 +16,11 @@ LISTING_CATS = [
 # ── Главное меню ──────────────────────────────────────────
 def main_menu():
     kb = ReplyKeyboardBuilder()
-    kb.button(text="🛍 Объявления")
-    kb.button(text="🏢 Услуги и бизнес")
     kb.button(text="📢 Подать объявление")
-    kb.button(text="➕ Добавить бизнес")
+    kb.button(text="🔍 Поиск")
+    kb.button(text="🛍 Объявления")
     kb.button(text="ℹ️ О Кабарман")
-    kb.adjust(2, 2, 1)
+    kb.adjust(2, 2)
     return kb.as_markup(resize_keyboard=True)
 
 # ── Меню услуг ────────────────────────────────────────────

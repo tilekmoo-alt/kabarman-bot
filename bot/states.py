@@ -1,5 +1,8 @@
 from aiogram.fsm.state import State, StatesGroup
 
+class UnifiedSearchState(StatesGroup):
+    typing_query = State()
+
 class SearchStates(StatesGroup):
     choosing_oblast    = State()
     choosing_district  = State()

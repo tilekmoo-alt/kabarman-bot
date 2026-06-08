@@ -1,9 +1,10 @@
 import html
+import asyncio
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 
-from bot.states import SearchStates
+from bot.states import SearchStates, UnifiedSearchState
 from bot.keyboards import (
     oblasts_keyboard, districts_keyboard, categories_keyboard,
     provider_result_keyboard, back_to_results_keyboard
@@ -11,7 +12,7 @@ from bot.keyboards import (
 from db.queries import (
     get_oblasts, get_oblast, get_districts_by_oblast, get_districts,
     get_categories, get_district, get_category,
-    search_providers, search_providers_by_text,
+    search_providers, search_providers_by_text, search_listings_by_text,
     get_or_create_client, log_search
 )
 
@@ -204,6 +205,60 @@ async def new_search(cb: CallbackQuery, state: FSMContext):
     )
     await state.set_state(SearchStates.choosing_oblast)
     await cb.answer()
+
+# ── Единый поиск (товары + услуги) ───────────────────────
+@router.message(UnifiedSearchState.typing_query)
+async def unified_search_results(msg: Message, state: FSMContext):
+    query = msg.text.strip()
+    if len(query) < 2:
+        await msg.answer("⚠️ Введите минимум 2 символа")
+        return
+
+    listings, providers = await asyncio.gather(
+        search_listings_by_text(query),
+        search_providers_by_text(query)
+    )
+
+    total = len(listings) + len(providers)
+    if not total:
+        from bot.keyboards import main_menu
+        await msg.answer(
+            f"😔 По запросу <b>«{esc(query)}»</b> ничего не найдено.\n\n"
+            "Попробуйте другое слово.",
+            parse_mode="HTML",
+            reply_markup=main_menu()
+        )
+        await state.clear()
+        return
+
+    await msg.answer(
+        f"🔍 По запросу <b>«{esc(query)}»</b> найдено: <b>{total}</b>",
+        parse_mode="HTML"
+    )
+
+    if listings:
+        await msg.answer(f"📢 <b>Объявления ({len(listings)}):</b>", parse_mode="HTML")
+        for l in listings:
+            price = "Договорная" if l['is_negotiable'] else (
+                f"{int(l['price']):,} сом".replace(',', ' ') if l['price'] else "Бесплатно"
+            )
+            loc = f"📍 {esc(l['district_name'])}" if l.get('district_name') else ""
+            text = (
+                f"━━━━━━━━━━━━━━━━━━━━\n"
+                f"🏷 <b>{esc(l['title'])}</b>\n"
+                f"📁 {esc(l['category'])}  💰 {price}\n"
+                f"{loc}\n"
+                f"━━━━━━━━━━━━━━━━━━━━"
+            )
+            await msg.answer(text.strip(), parse_mode="HTML")
+
+    if providers:
+        await msg.answer(f"🏢 <b>Услуги и бизнес ({len(providers)}):</b>", parse_mode="HTML")
+        for p in providers:
+            await msg.answer(_format_card(p), parse_mode="HTML",
+                             reply_markup=provider_result_keyboard(p))
+
+    await state.clear()
 
 # ── Карточка (HTML-safe) ──────────────────────────────────
 def _format_card(p) -> str:

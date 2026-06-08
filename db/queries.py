@@ -105,6 +105,22 @@ async def search_providers_by_text(query: str):
         LIMIT 10
     """, q)
 
+async def search_listings_by_text(query: str):
+    pool = await get_pool()
+    q = f"%{query.lower()}%"
+    return await pool.fetch("""
+        SELECT l.*, o.name AS oblast_name, d.name AS district_name
+        FROM listings l
+        LEFT JOIN oblasts o ON l.oblast_id = o.id
+        LEFT JOIN districts d ON l.district_id = d.id
+        WHERE l.is_active=true AND l.expires_at > NOW()
+          AND (LOWER(l.title) LIKE $1
+            OR LOWER(l.description) LIKE $1
+            OR LOWER(l.category) LIKE $1)
+        ORDER BY l.created_at DESC
+        LIMIT 10
+    """, q)
+
 async def get_all_providers_admin(approved: bool = False):
     pool = await get_pool()
     return await pool.fetch("""

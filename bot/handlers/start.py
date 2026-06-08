@@ -11,12 +11,11 @@ router = Router()
 WELCOME_TEXT = """
 👋 <b>Салам! Добро пожаловать в KABARMAN</b>
 
-Объявления и справочник бизнеса <b>Кыргызстана</b>
+Объявления и услуги <b>Кыргызстана</b>
 
-🛍 <b>Объявления</b> — купля-продажа, скот, авто, техника
-🏢 <b>Услуги</b> — найди мастера, кафе, СТО, специалиста
-📢 <b>Подать объявление</b> — бесплатно, активно 30 дней
-➕ <b>Добавить бизнес</b> — зарегистрируй компанию
+📢 <b>Подать объявление</b> — товар или услугу, бесплатно
+🔍 <b>Поиск</b> — найди товар, мастера или компанию
+🛍 <b>Объявления</b> — смотреть по категориям
 
 Выберите что вам нужно 👇
 """
@@ -64,15 +63,17 @@ async def cmd_start(msg: Message, state: FSMContext):
     )
     await send_welcome(msg)
 
-@router.message(F.text == "🏢 Услуги и бизнес")
-async def services_start(msg: Message, state: FSMContext):
+@router.message(F.text == "🔍 Поиск")
+async def unified_search_start(msg: Message, state: FSMContext):
+    from bot.states import UnifiedSearchState
     await state.clear()
     await msg.answer(
-        "🏢 <b>Услуги и бизнес</b>\n\n"
-        "Как хотите найти?",
-        parse_mode="HTML",
-        reply_markup=services_menu()
+        "🔍 <b>Поиск</b>\n\n"
+        "Напишите что ищете — товар, услугу, мастера...\n\n"
+        "<i>Например: Toyota, сантехник, пилорама, кафе...</i>",
+        parse_mode="HTML"
     )
+    await state.set_state(UnifiedSearchState.typing_query)
 
 @router.message(F.text == "ℹ️ О Кабарман")
 async def about(msg: Message):
