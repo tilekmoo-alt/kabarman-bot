@@ -151,17 +151,17 @@ async def create_listing(title, description, price, is_negotiable,
 
 async def get_listings(category=None, oblast_id=None, district_id=None, limit=20, offset=0):
     pool = await get_pool()
-    conditions = ["is_active=true", "expires_at > NOW()"]
+    conditions = ["l.is_active=true", "l.expires_at > NOW()"]
     params = []
     if category:
         params.append(category)
-        conditions.append(f"category=${len(params)}")
+        conditions.append(f"l.category=${len(params)}")
     if oblast_id:
         params.append(oblast_id)
-        conditions.append(f"oblast_id=${len(params)}")
+        conditions.append(f"l.oblast_id=${len(params)}")
     if district_id:
         params.append(district_id)
-        conditions.append(f"district_id=${len(params)}")
+        conditions.append(f"l.district_id=${len(params)}")
     params += [limit, offset]
     where = " AND ".join(conditions)
     return await pool.fetch(f"""
