@@ -21,32 +21,37 @@ WELCOME_TEXT = """
 """
 
 async def send_welcome(message: Message):
-    """Отправляет приветствие с логотипом"""
     logo_file_id = os.getenv("WELCOME_FILE_ID")
+    sent_with_photo = False
 
     if logo_file_id:
-        # Используем сохранённый file_id (быстро)
-        await message.answer_photo(
-            photo=logo_file_id,
-            caption=WELCOME_TEXT,
-            parse_mode="HTML",
-            reply_markup=main_menu()
-        )
-    elif os.path.exists("welcome.jpg"):
-        # Отправляем файл и сохраняем file_id
-        photo = FSInputFile("welcome.jpg")
-        sent = await message.answer_photo(
-            photo=photo,
-            caption=WELCOME_TEXT,
-            parse_mode="HTML",
-            reply_markup=main_menu()
-        )
-        # Выводим file_id в лог — скопируй и добавь в Railway Variables
-        fid = sent.photo[-1].file_id
-        print(f"📸 WELCOME_FILE_ID={fid}")
-        print(f"Добавь в Railway Variables: WELCOME_FILE_ID={fid}")
-    else:
-        # Без картинки
+        try:
+            await message.answer_photo(
+                photo=logo_file_id,
+                caption=WELCOME_TEXT,
+                parse_mode="HTML",
+                reply_markup=main_menu()
+            )
+            sent_with_photo = True
+        except Exception:
+            pass
+
+    if not sent_with_photo and os.path.exists("welcome.jpg"):
+        try:
+            photo = FSInputFile("welcome.jpg")
+            sent = await message.answer_photo(
+                photo=photo,
+                caption=WELCOME_TEXT,
+                parse_mode="HTML",
+                reply_markup=main_menu()
+            )
+            fid = sent.photo[-1].file_id
+            print(f"📸 WELCOME_FILE_ID={fid}")
+            sent_with_photo = True
+        except Exception:
+            pass
+
+    if not sent_with_photo:
         await message.answer(
             WELCOME_TEXT,
             parse_mode="HTML",
