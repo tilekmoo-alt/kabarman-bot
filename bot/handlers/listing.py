@@ -3,15 +3,17 @@ from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 
-from bot.states import ListingStates
+from bot.states import ListingStates, BrowseStates
 from bot.keyboards import (
     listing_menu, listing_categories_keyboard, listing_photo_keyboard,
     listing_price_keyboard, listing_confirm_keyboard,
-    oblasts_keyboard, reg_districts_keyboard, main_menu
+    oblasts_keyboard, reg_districts_keyboard, main_menu,
+    browse_categories_keyboard, browse_oblasts_keyboard, browse_nav_keyboard
 )
 from db.queries import (
     get_oblasts, get_oblast, get_districts_by_oblast, get_district,
-    create_listing, get_listings, get_listings_by_tg, deactivate_listing
+    create_listing, get_listings, get_listings_count,
+    get_listings_by_tg, deactivate_listing
 )
 
 router = Router()
@@ -41,38 +43,115 @@ async def listing_new_from_menu(msg: Message, state: FSMContext):
     )
     await state.set_state(ListingStates.choosing_category)
 
-# ── Смотреть объявления ───────────────────────────────────
-@router.callback_query(F.data == "listings_browse")
-async def browse_listings(cb: CallbackQuery, state: FSMContext):
-    listings = await get_listings(limit=10)
+PER_PAGE = 5
+
+def _price_str(l) -> str:
+    if l['is_negotiable']: return "Договорная"
+    if l['price'] == 0:    return "Бесплатно"
+    if l['price']:         return f"{l['price']:,} сом".replace(',', ' ')
+    return "—"
+
+def _format_page(listings, page, total, category, oblast_name) -> str:
+    total_pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
+    filters = []
+    if category:    filters.append(f"🏷 {category}")
+    if oblast_name: filters.append(f"🗺 {oblast_name}")
+    header = " · ".join(filters) if filters else "Все категории · Вся страна"
+    lines = [f"📋 <b>Объявления</b> | {header}\nСтр. {page}/{total_pages} · Всего: {total}\n"]
+    for i, l in enumerate(listings, (page - 1) * PER_PAGE + 1):
+        loc = esc(l['district_name'] or l['oblast_name'] or '')
+        photos = f"📸 {len(l['photos'])} фото  " if l.get('photos') else ""
+        lines.append(
+            f"<b>{i}. {esc(l['title'])}</b>\n"
+            f"💰 {_price_str(l)}  {photos}"
+            f"{'📍 ' + loc if loc else ''}\n"
+            f"📞 {esc(l['contact_phone'])}\n"
+            f"{'─' * 20}"
+        )
+    return "\n".join(lines)
+
+async def _show_page(cb: CallbackQuery, state: FSMContext, page: int):
+    data = await state.get_data()
+    category   = data.get('browse_category')
+    oblast_id  = data.get('browse_oblast_id')
+    oblast_name = data.get('browse_oblast_name', '')
+
+    offset   = (page - 1) * PER_PAGE
+    listings = await get_listings(category=category, oblast_id=oblast_id, limit=PER_PAGE, offset=offset)
+    total    = await get_listings_count(category=category, oblast_id=oblast_id)
+    total_pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
+
+    await state.update_data(browse_page=page)
+
     if not listings:
         await cb.message.edit_text(
-            "😔 Объявлений пока нет.\n\nБудьте первым!",
-            reply_markup=listing_menu()
+            "😔 Объявлений по этому фильтру нет.\n\nПопробуйте другой.",
+            reply_markup=browse_nav_keyboard(1, False, False)
         )
         await cb.answer()
         return
 
+    text = _format_page(listings, page, total, category, oblast_name)
     await cb.message.edit_text(
-        f"📋 <b>Последние объявления ({len(listings)})</b>",
-        parse_mode="HTML"
+        text, parse_mode="HTML",
+        reply_markup=browse_nav_keyboard(page, page > 1, page < total_pages)
     )
-    for l in listings:
-        price_str = (
-            f"{l['price']:,} сом".replace(',', ' ') if l['price'] and not l['is_negotiable']
-            else ("Бесплатно" if l['price'] == 0 else "Договорная")
-        )
-        photos_str = f"📸 {len(l['photos'])} фото\n" if l['photos'] else ""
-        location = f"📍 {esc(l['district_name'] or l['oblast_name'] or '')}\n" if (l.get('district_name') or l.get('oblast_name')) else ""
-        text = (
-            f"<b>{esc(l['title'])}</b>\n"
-            f"🏷 {esc(l['category'])} · 💰 {price_str}\n"
-            f"{location}"
-            f"{photos_str}"
-            f"📞 {esc(l['contact_phone'])}"
-        )
-        await cb.message.answer(text, parse_mode="HTML")
+    await cb.answer()
 
+# ── Смотреть объявления → выбор категории ─────────────────
+@router.callback_query(F.data == "listings_browse")
+async def browse_listings(cb: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await cb.message.edit_text(
+        "📋 <b>Смотреть объявления</b>\n\nВыберите категорию:",
+        parse_mode="HTML",
+        reply_markup=browse_categories_keyboard()
+    )
+    await state.set_state(BrowseStates.choosing_category)
+    await cb.answer()
+
+@router.callback_query(F.data.startswith("bccat:"))
+async def browse_category_chosen(cb: CallbackQuery, state: FSMContext):
+    cat = cb.data.split(":", 1)[1]
+    await state.update_data(browse_category=None if cat == "all" else cat)
+    oblasts = await get_oblasts()
+    cat_label = cat if cat != "all" else "Все категории"
+    await cb.message.edit_text(
+        f"🏷 <b>{esc(cat_label)}</b>\n\nВыберите область:",
+        parse_mode="HTML",
+        reply_markup=browse_oblasts_keyboard(oblasts)
+    )
+    await state.set_state(BrowseStates.choosing_oblast)
+    await cb.answer()
+
+@router.callback_query(F.data == "bcob_back")
+async def browse_back_to_cats(cb: CallbackQuery, state: FSMContext):
+    await cb.message.edit_text(
+        "📋 <b>Выберите категорию:</b>",
+        parse_mode="HTML",
+        reply_markup=browse_categories_keyboard()
+    )
+    await state.set_state(BrowseStates.choosing_category)
+    await cb.answer()
+
+@router.callback_query(F.data.startswith("bcob:"))
+async def browse_oblast_chosen(cb: CallbackQuery, state: FSMContext):
+    val = cb.data.split(":", 1)[1]
+    if val == "all":
+        await state.update_data(browse_oblast_id=None, browse_oblast_name='')
+    else:
+        oblast = await get_oblast(int(val))
+        await state.update_data(browse_oblast_id=int(val), browse_oblast_name=oblast['name'])
+    await state.set_state(BrowseStates.viewing)
+    await _show_page(cb, state, page=1)
+
+@router.callback_query(F.data.startswith("lb_nav:"))
+async def browse_navigate(cb: CallbackQuery, state: FSMContext):
+    page = int(cb.data.split(":")[1])
+    await _show_page(cb, state, page=page)
+
+@router.callback_query(F.data == "lb_noop")
+async def browse_noop(cb: CallbackQuery):
     await cb.answer()
 
 # ── Мои объявления ────────────────────────────────────────

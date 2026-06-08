@@ -32,6 +32,39 @@ def services_menu():
     builder.adjust(1)
     return builder.as_markup()
 
+# ── Просмотр объявлений: фильтры ──────────────────────────
+def browse_categories_keyboard():
+    builder = InlineKeyboardBuilder()
+    builder.button(text="📋 Все категории", callback_data="bccat:all")
+    for emoji, name in LISTING_CATS:
+        builder.button(text=f"{emoji} {name}", callback_data=f"bccat:{name}")
+    builder.button(text="🏠 Главное меню", callback_data="main_menu")
+    builder.adjust(2)
+    return builder.as_markup()
+
+def browse_oblasts_keyboard(oblasts):
+    builder = InlineKeyboardBuilder()
+    builder.button(text="🇰🇬 Вся страна", callback_data="bcob:all")
+    for o in oblasts:
+        builder.button(text=f"🗺 {o['name']}", callback_data=f"bcob:{o['id']}")
+    builder.button(text="◀️ Назад", callback_data="bcob_back")
+    builder.adjust(2)
+    return builder.as_markup()
+
+def browse_nav_keyboard(page: int, has_prev: bool, has_next: bool):
+    builder = InlineKeyboardBuilder()
+    row = []
+    if has_prev:
+        builder.button(text="◀️ Назад", callback_data=f"lb_nav:{page - 1}")
+    builder.button(text=f"стр. {page}", callback_data="lb_noop")
+    if has_next:
+        builder.button(text="Далее ▶️", callback_data=f"lb_nav:{page + 1}")
+    builder.button(text="🔄 Фильтр",      callback_data="listings_browse")
+    builder.button(text="🏠 Главное меню", callback_data="main_menu")
+    cols = sum([has_prev, True, has_next])
+    builder.adjust(cols, 2)
+    return builder.as_markup()
+
 # ── Объявления ────────────────────────────────────────────
 def listing_menu():
     builder = InlineKeyboardBuilder()

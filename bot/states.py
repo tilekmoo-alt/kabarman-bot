@@ -6,6 +6,11 @@ class SearchStates(StatesGroup):
     choosing_category  = State()
     typing_query       = State()
 
+class BrowseStates(StatesGroup):
+    choosing_category = State()
+    choosing_oblast   = State()
+    viewing           = State()
+
 class ListingStates(StatesGroup):
     choosing_category  = State()
     choosing_oblast    = State()

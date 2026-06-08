@@ -174,6 +174,24 @@ async def get_listings(category=None, oblast_id=None, district_id=None, limit=20
         LIMIT ${len(params)-1} OFFSET ${len(params)}
     """, *params)
 
+async def get_listings_count(category=None, oblast_id=None):
+    pool = await get_pool()
+    conditions = ["l.is_active=true", "l.expires_at > NOW()"]
+    params = []
+    if category:
+        params.append(category)
+        conditions.append(f"l.category=${len(params)}")
+    if oblast_id:
+        params.append(oblast_id)
+        conditions.append(f"l.oblast_id=${len(params)}")
+    where = " AND ".join(conditions)
+    row = await pool.fetchrow(f"""
+        SELECT COUNT(*) AS cnt FROM listings l
+        LEFT JOIN oblasts o ON l.oblast_id = o.id
+        WHERE {where}
+    """, *params)
+    return row['cnt']
+
 async def get_listings_by_tg(tg_id: int):
     pool = await get_pool()
     return await pool.fetch("""
