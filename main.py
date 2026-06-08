@@ -42,12 +42,8 @@ def run_webhook(bot: Bot, dp: Dispatcher):
         await bot.set_webhook(webhook_url, drop_pending_updates=True)
         logging.info(f"✅ Webhook: {webhook_url}")
 
-    async def on_shutdown(_):
-        await bot.delete_webhook()
-
     app = web.Application()
     app.on_startup.append(on_startup)
-    app.on_shutdown.append(on_shutdown)
 
     SimpleRequestHandler(dispatcher=dp, bot=bot).register(app, path=WEBHOOK_PATH)
     setup_application(app, dp, bot=bot)
