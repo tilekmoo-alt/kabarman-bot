@@ -8,7 +8,8 @@ from bot.keyboards import (
     listing_menu, listing_categories_keyboard, listing_photo_keyboard,
     listing_price_keyboard, listing_confirm_keyboard,
     oblasts_keyboard, reg_districts_keyboard, main_menu,
-    browse_categories_keyboard, browse_oblasts_keyboard, browse_nav_keyboard
+    browse_categories_keyboard, browse_oblasts_keyboard, browse_nav_keyboard,
+    post_choice_keyboard
 )
 from db.queries import (
     get_oblasts, get_oblast, get_districts_by_oblast, get_district,
@@ -36,12 +37,30 @@ async def listings_menu(msg: Message, state: FSMContext):
 async def listing_new_from_menu(msg: Message, state: FSMContext):
     await state.clear()
     await msg.answer(
-        "➕ <b>Новое объявление</b>\n\n"
+        "📢 <b>Подать объявление</b>\n\n"
+        "Что хотите разместить?",
+        parse_mode="HTML",
+        reply_markup=post_choice_keyboard()
+    )
+
+@router.callback_query(F.data == "post_listing")
+async def cb_post_listing(cb: CallbackQuery, state: FSMContext):
+    await cb.message.edit_text(
+        "🛍 <b>Продажа товара</b>\n\n"
         "Шаг 1 из 7 — Выберите категорию:",
         parse_mode="HTML",
         reply_markup=listing_categories_keyboard()
     )
     await state.set_state(ListingStates.choosing_category)
+    await cb.answer()
+
+@router.callback_query(F.data == "post_service")
+async def cb_post_service(cb: CallbackQuery, state: FSMContext):
+    await state.clear()
+    from bot.handlers.register import start_registration
+    await cb.message.edit_text("🔧 Регистрация услуги...")
+    await start_registration(cb.message, state)
+    await cb.answer()
 
 PER_PAGE = 5
 

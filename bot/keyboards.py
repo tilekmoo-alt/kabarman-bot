@@ -23,6 +23,14 @@ def main_menu():
     kb.adjust(2, 2)
     return kb.as_markup(resize_keyboard=True)
 
+# ── Выбор типа объявления ─────────────────────────────────
+def post_choice_keyboard():
+    builder = InlineKeyboardBuilder()
+    builder.button(text="🛍 Продаю товар",       callback_data="post_listing")
+    builder.button(text="🔧 Предлагаю услугу",    callback_data="post_service")
+    builder.adjust(1)
+    return builder.as_markup()
+
 # ── Меню услуг ────────────────────────────────────────────
 def services_menu():
     builder = InlineKeyboardBuilder()
