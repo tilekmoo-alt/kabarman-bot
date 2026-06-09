@@ -4,6 +4,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 LISTING_CATS = [
     ('🚗', 'Транспорт'),
     ('🐄', 'Скот и животные'),
+    ('🐑', 'Арашан'),
     ('🏠', 'Недвижимость'),
     ('📱', 'Электроника'),
     ('👗', 'Одежда и обувь'),
