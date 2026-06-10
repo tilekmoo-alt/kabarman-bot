@@ -9,7 +9,7 @@ from bot.keyboards import admin_provider_keyboard, main_menu
 from db.queries import (
     get_all_providers_admin, approve_provider,
     reject_provider, admin_delete_provider, get_stats,
-    deactivate_listing
+    deactivate_listing, get_full_stats
 )
 
 router = Router()
@@ -31,22 +31,103 @@ def confirm_admin_delete_keyboard(provider_id: int):
     builder.adjust(2)
     return builder.as_markup()
 
+def admin_panel_keyboard():
+    builder = InlineKeyboardBuilder()
+    builder.button(text="📊 Статистика",      callback_data="admin_stats")
+    builder.button(text="⏳ Заявки",           callback_data="admin_pending_btn")
+    builder.button(text="📋 Каталог услуг",    callback_data="admin_active_btn")
+    builder.adjust(1)
+    return builder.as_markup()
+
 @router.message(Command("admin"))
 async def admin_panel(msg: Message):
     if not is_admin(msg.from_user.id): return
-    providers, pending, clients, searches, by_district = await get_stats()
-    district_lines = "\n".join(f"  📍 {esc(r['name'])}: <b>{r['cnt']}</b>" for r in by_district)
     await msg.answer(
-        "🛠 <b>Панель — Кабарман</b>\n\n"
-        f"✅ Активных: <b>{providers}</b>\n"
-        f"⏳ На проверке: <b>{pending}</b>\n"
-        f"👥 Клиентов: <b>{clients}</b>\n"
-        f"🔍 Поисков: <b>{searches}</b>\n\n"
-        f"По районам:\n{district_lines}\n\n"
-        "/pending — заявки на проверку\n"
-        "/active — активный каталог",
-        parse_mode="HTML"
+        "🛠 <b>Панель управления — Кабарман</b>\n\n"
+        "Выберите действие:",
+        parse_mode="HTML",
+        reply_markup=admin_panel_keyboard()
     )
+
+@router.callback_query(F.data == "admin_stats")
+async def cb_admin_stats(cb: CallbackQuery):
+    if not is_admin(cb.from_user.id):
+        await cb.answer("⛔ Нет доступа", show_alert=True); return
+    await cb.answer("⏳ Загружаю...")
+    s = await get_full_stats()
+
+    total = s["total_listings"]
+    photo_pct = round(s["with_photo"] / total * 100) if total else 0
+
+    cat_lines = "\n".join(
+        f"  {r['category']}: <b>{r['cnt']}</b>"
+        for r in s["by_category"]
+    )
+    oblast_lines = "\n".join(
+        f"  📍 {esc(r['name'])}: <b>{r['cnt']}</b>"
+        for r in s["by_oblast"]
+    )
+
+    text = (
+        "📊 <b>Статистика Кабарман</b>\n\n"
+        f"📢 <b>Объявлений:</b> {total}\n"
+        f"  🌐 Сайт: {s['web_listings']}  |  🤖 Бот: {s['bot_listings']}\n"
+        f"  📸 С фото: {s['with_photo']} ({photo_pct}%)\n\n"
+        f"<b>По категориям:</b>\n{cat_lines}\n\n"
+        f"<b>По регионам:</b>\n{oblast_lines}\n\n"
+        f"🏢 <b>Услуги:</b> {s['total_providers']} активных"
+        + (f"  |  ⏳ {s['pending']} на проверке" if s['pending'] else "") + "\n"
+        f"👥 <b>Пользователей бота:</b> {s['bot_users']}"
+    )
+    builder = InlineKeyboardBuilder()
+    builder.button(text="🔄 Обновить", callback_data="admin_stats")
+    builder.button(text="◀️ Назад",    callback_data="admin_back")
+    builder.adjust(2)
+    await cb.message.edit_text(text, parse_mode="HTML", reply_markup=builder.as_markup())
+
+@router.callback_query(F.data == "admin_back")
+async def cb_admin_back(cb: CallbackQuery):
+    if not is_admin(cb.from_user.id): return
+    await cb.message.edit_text(
+        "🛠 <b>Панель управления — Кабарман</b>\n\nВыберите действие:",
+        parse_mode="HTML",
+        reply_markup=admin_panel_keyboard()
+    )
+    await cb.answer()
+
+@router.callback_query(F.data == "admin_pending_btn")
+async def cb_admin_pending_btn(cb: CallbackQuery):
+    if not is_admin(cb.from_user.id): return
+    await cb.answer()
+    providers = await get_all_providers_admin(approved=False)
+    if not providers:
+        await cb.message.answer("✅ Нет заявок на проверку"); return
+    for p in providers:
+        await cb.message.answer(
+            f"⏳ <b>Заявка #{p['id']}</b>\n"
+            f"📁 {esc(p['cat_name'])} · 📍 {esc(p['district_name'])}\n"
+            f"🏷️ {esc(p['name'])}\n"
+            f"📞 {esc(p['phone'])}\n"
+            f"📝 {esc(p.get('description',''))}",
+            parse_mode="HTML",
+            reply_markup=admin_provider_keyboard(p['id'])
+        )
+
+@router.callback_query(F.data == "admin_active_btn")
+async def cb_admin_active_btn(cb: CallbackQuery):
+    if not is_admin(cb.from_user.id): return
+    await cb.answer()
+    providers = await get_all_providers_admin(approved=True)
+    if not providers:
+        await cb.message.answer("Каталог пуст"); return
+    for p in providers:
+        await cb.message.answer(
+            f"✅ <b>#{p['id']} {esc(p['name'])}</b>\n"
+            f"📁 {esc(p['cat_name'])} · 📍 {esc(p['district_name'])}\n"
+            f"📞 {esc(p['phone'])}",
+            parse_mode="HTML",
+            reply_markup=admin_active_keyboard(p['id'])
+        )
 
 @router.message(Command("pending"))
 async def admin_pending(msg: Message):

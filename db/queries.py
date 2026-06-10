@@ -248,3 +248,31 @@ async def get_stats():
         GROUP BY d.id, d.name ORDER BY d.sort_order
     """)
     return providers, pending, clients, searches, by_district
+
+async def get_full_stats():
+    pool = await get_pool()
+    total_listings  = await pool.fetchval("SELECT COUNT(*) FROM listings WHERE is_active=true AND expires_at > NOW()")
+    with_photo      = await pool.fetchval("SELECT COUNT(*) FROM listings WHERE is_active=true AND expires_at > NOW() AND array_length(photos,1) > 0")
+    bot_listings    = await pool.fetchval("SELECT COUNT(*) FROM listings WHERE is_active=true AND source='bot'")
+    web_listings    = await pool.fetchval("SELECT COUNT(*) FROM listings WHERE is_active=true AND source='web'")
+    by_category     = await pool.fetch("SELECT category, COUNT(*) AS cnt FROM listings WHERE is_active=true AND expires_at > NOW() GROUP BY category ORDER BY cnt DESC")
+    by_oblast       = await pool.fetch("""
+        SELECT o.name, COUNT(l.id) AS cnt
+        FROM oblasts o
+        LEFT JOIN listings l ON l.oblast_id=o.id AND l.is_active=true AND l.expires_at > NOW()
+        GROUP BY o.id, o.name HAVING COUNT(l.id) > 0 ORDER BY cnt DESC LIMIT 7
+    """)
+    total_providers = await pool.fetchval("SELECT COUNT(*) FROM providers WHERE is_approved=true AND is_active=true")
+    pending         = await pool.fetchval("SELECT COUNT(*) FROM providers WHERE is_approved=false AND is_active=true")
+    bot_users       = await pool.fetchval("SELECT COUNT(*) FROM clients")
+    return {
+        "total_listings": total_listings,
+        "with_photo": with_photo,
+        "bot_listings": bot_listings,
+        "web_listings": web_listings,
+        "by_category": by_category,
+        "by_oblast": by_oblast,
+        "total_providers": total_providers,
+        "pending": pending,
+        "bot_users": bot_users,
+    }
